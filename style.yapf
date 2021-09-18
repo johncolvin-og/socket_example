@@ -1,0 +1,5 @@
+[style]
+allow_multiline_dictionary_keys=False
+continuation_align_style=SPACE
+continuation_indent_width=4
+split_before_first_argument=True
