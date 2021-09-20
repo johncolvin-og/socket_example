@@ -1,5 +1,8 @@
+import asyncio
 import logging
 import socket
+import websockets
+import websockets.client
 import argparse
 import sys
 
@@ -30,6 +33,11 @@ def _get_arg_parser():
         choices=[logging.DEBUG, logging.INFO, logging.WARN, logging.ERROR],
         help='The verbosity level',
         default=logging.INFO)
+
+    parser.add_argument(
+        '--async',
+        action='store_true',
+        help='Whether or not to run asynchronously')
     return parser
 
 
@@ -40,6 +48,14 @@ def _init_logger(verbosity):
     logger.addHandler(logging.StreamHandler(sys.stdout))
     return logger
 
+
+async def run_async(host, port):
+    async with websockets.client.connect(f'ws://{host}:{port}') as conn:
+        async for msg_in in conn:
+            logging.info(f'Received msg ({type(msg_in)}): {msg_in}')
+    logging.info('DONE')
+
+
 def main():
     parser = _get_arg_parser()
     args = parser.parse_args()
@@ -48,6 +64,10 @@ def main():
     buffer_size = 1024
 
     logger = _init_logger(args.verbosity)
+
+    if vars(args)['async']:
+        asyncio.run(run_async(host, port))
+        return
 
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     logger.debug(f'connecting to {host}:{port}')

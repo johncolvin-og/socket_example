@@ -1,7 +1,10 @@
+import asyncio
 import logging
 import socket
 import argparse
 import sys
+import websockets
+import websockets.server
 
 
 def _get_arg_parser():
@@ -30,6 +33,11 @@ def _get_arg_parser():
         choices=[logging.DEBUG, logging.INFO, logging.WARN, logging.ERROR],
         help='The verbosity level',
         default=logging.INFO)
+
+    parser.add_argument(
+        '--async',
+        action='store_true',
+        help='Whether or not to run asynchronously')
     return parser
 
 
@@ -41,6 +49,21 @@ def _init_logger(verbosity):
     return logger
 
 
+async def run_async(host, port, n_msgs=3, sleep_interval=3):
+    async def ws_handler(
+            protocol: websockets.server.WebSocketServerProtocol, path):
+        for i in range(1, n_msgs + 1):
+            logging.info(f'conn sending msg {i}...')
+            await protocol.send(f'msg {i}')
+            await asyncio.sleep(sleep_interval)
+
+    async with websockets.server.serve(ws_handler, host, port) as conn:
+        logging.info(
+            'connection established.  Now waiting for connection to close...')
+        await conn.wait_closed()
+        logging.info('connection closed. DONE')
+
+
 def main():
     parser = _get_arg_parser()
     args = parser.parse_args()
@@ -49,6 +72,9 @@ def main():
     buffer_size = 1024
 
     logger = _init_logger(args.verbosity)
+    if vars(args)['async']:
+        asyncio.run(run_async(host, port))
+        return
 
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # reserve port for this socket (once 'bind' is called, other sockets won't be allowed to use this port)
